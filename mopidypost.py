@@ -10,10 +10,10 @@ _base_dict = {'jsonrpc': '2.0', 'id': 1, 'params': {}}
 
 class Mopidy(object):
     def __init__(self, url):
-        self.is_playing = False
         self.url = url + MOPIDY_API
+        self.is_playing = self.get_playing_state() == 'playing'
         self.volume = None
-        self.clear_list(force=True)
+        # self.clear_list(force=True)
         self.volume_low = 3
         self.volume_high = 100
 
@@ -210,6 +210,20 @@ class Mopidy(object):
         r = requests.post(self.url, headers={"content-type":"application/json"}, data=json.dumps(d))
         if 'result' in r.json():
             return [e['uri'] for e in r.json()['result']]
+        else:
+            return None
+
+    def shuffle_tracklist(self):
+        d = copy(_base_dict)
+        d['method'] = 'core.tracklist.shuffle'
+        r = requests.post(self.url, headers={"content-type":"application/json"}, data=json.dumps(d))
+
+    def get_playing_state(self):
+        d = copy(_base_dict)
+        d['method'] = 'core.playback.get_state'
+        r = requests.post(self.url, headers={"content-type":"application/json"}, data=json.dumps(d))
+        if 'result' in r.json():
+            return r.json()['result']
         else:
             return None
 

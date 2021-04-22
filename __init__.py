@@ -80,12 +80,17 @@ class MopidySkill(CommonPlaySkill):
         self.add_event('mycroft.audio.service.prev', self.handle_prev)
         self.add_event('mycroft.audio.service.pause', self.handle_pause)
         self.add_event('mycroft.audio.service.resume', self.handle_resume)
+        self.add_event('mycroft.audio.service.stop', self.handle_stop)
+        self.add_event('mycroft.audio.service.track_info', self.handle_currently_playing)
 
         self.mopidy = self._connect()
 
-    def play(self, tracks):
+    def play(self, tracks, shuffle):
         self.mopidy.clear_list()
         self.mopidy.add_list(tracks)
+        self.log.info("Should shuffle? " + str(shuffle))
+        if shuffle:
+            self.mopidy.shuffle_tracklist()
         self.mopidy.play()
 
     def translate_regex(self, regex):
@@ -216,6 +221,7 @@ class MopidySkill(CommonPlaySkill):
 
     def CPS_start(self, phrase, data):
         p = data.get('playlist')
+        shuffle = False
         list_type = data.get('playlist_type', 'generic')
         library_type = data.get('library_type', 'generic')
 
@@ -228,7 +234,6 @@ class MopidySkill(CommonPlaySkill):
             playlists = lists[list_type]
         else:
             playlists = lists[list_type][library_type]
-        self.stop()
         self.speak('Playing {}'.format(p))
         time.sleep(3)
         if playlists[p]['type'] == 'playlist':
@@ -236,8 +241,13 @@ class MopidySkill(CommonPlaySkill):
         if playlists[p]['type'] == 'track':
             tracks = playlists[p]['uri']
         else:
+            shuffle = (library_type == 'spotify') and (list_type == 'artist')
             tracks = self.mopidy.get_tracks(playlists[p]['uri'])
-        self.play(tracks)
+        
+        shuffle = (library_type == 'spotify') and ((list_type == 'generic') or (list_type == 'playlist')) or shuffle
+
+        self.stop()
+        self.play(tracks, shuffle)
 
     def stop(self, message=None):
         self.log.info('Handling stop request')
@@ -253,6 +263,11 @@ class MopidySkill(CommonPlaySkill):
 
     def handle_pause(self, message):
         self.mopidy.pause()
+
+    def handle_stop(self, message):
+        self.log.info("self.mopidy.is_playing = " + str(self.mopidy.is_playing))
+        self.mopidy.stop()
+        self.mopidy.clear_list(force=True)
 
     def handle_resume(self, message):
         """Resume playback if paused"""
@@ -274,14 +289,14 @@ class MopidySkill(CommonPlaySkill):
     def handle_currently_playing(self, message):
         current_track = self.mopidy.currently_playing()
         if current_track is not None:
-            self.mopidy.lower_volume()
-            time.sleep(1)
+            # self.mopidy.lower_volume()
             if 'album' in current_track:
+                time.sleep(1)
                 data = {'current_track': current_track['name'],
                         'artist': current_track['album']['artists'][0]['name']}
                 self.speak_dialog('currently_playing', data)
-            time.sleep(6)
-            self.mopidy.restore_volume()
+                time.sleep(6)
+            # self.mopidy.restore_volume()
 
 
 def create_skill():
