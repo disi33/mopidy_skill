@@ -142,11 +142,13 @@ class MopidySkill(CommonPlaySkill):
                 library_type = t
         return best_found, best_conf, 'song', library_type
 
-
     def query_artist(self, artist):
         best_found = None
         best_conf = 0.0
         library_type = None
+
+        self.artists['spotify'] = self.mopidy.search_artists(artist)
+
         for t in self.artists:
             found, conf = (extract_one(artist, self.artists[t].keys()) or
                            (None, 0))
@@ -156,10 +158,12 @@ class MopidySkill(CommonPlaySkill):
                 library_type = t
         return best_found, best_conf, 'artist', library_type
 
-    def query_album(self, album):
+    def query_album(self, album, artist):
         best_found = None
         best_conf = 0
         library_type = None
+        self.albums['spotify'] = self.mopidy.search_albums(album, artist)
+
         for t in self.albums:
             self.log.info(self.albums[t].keys())
             found, conf = (extract_one(album, self.albums[t].keys()) or
@@ -185,8 +189,12 @@ class MopidySkill(CommonPlaySkill):
         # Check album
         match = re.match(self.translate_regex('album'), phrase)
         if match:
-            album = match.groupdict()['album']
-            return self.query_album(album)
+            album1 = match.groupdict()['album'] if 'album' in match.groupdict() else None
+            album2 = match.groupdict()['album2'] if 'album2' in match.groupdict() else None
+            artist2 = match.groupdict()['artist2'] if 'artist2' in match.groupdict() else None
+            album = album1 if not ((album1 is None) or (album1 == '')) else album2
+            artist = artist2 if not ((artist2 is None) or (artist2 == '')) else None
+            return self.query_album(album, artist)
 
         # Check artist
         match = re.match(self.translate_regex('artist'), phrase)

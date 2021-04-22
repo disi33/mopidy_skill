@@ -72,6 +72,58 @@ class Mopidy(object):
         else:
             return None
 
+    def search_albums(self, album, artist):
+        d = copy(_base_dict)
+        d['method'] = 'core.library.search'
+        d['params'] = {'query': {'album': [album]}} if artist is None else {'query': {'album': [album], 'artist': [artist]}}
+        r = requests.post(self.url, headers={"content-type":"application/json"}, data=json.dumps(d))
+        if 'result' in r.json():
+            results_list = r.json()['result']
+            spotify_results = None
+            for result in results_list:
+                if result['uri'].startswith('spotify') and 'albums' in result:
+                    spotify_results = result['albums']
+            if spotify_results is None:
+                return None
+            else:
+                formatted_results = {}
+                for album_result in spotify_results:
+                    formatted_results[album_result['name']] = {
+                        "__model__": "Ref", 
+                        "uri": album_result['uri'], 
+                        "name": album_result['name'], 
+                        "type": "album"
+                    }
+                return formatted_results
+        else:
+            return None
+
+    def search_artists(self, artist):
+        d = copy(_base_dict)
+        d['method'] = 'core.library.search'
+        d['params'] = {'query': {'artist': [artist]}}
+        r = requests.post(self.url, headers={"content-type":"application/json"}, data=json.dumps(d))
+        if 'result' in r.json():
+            results_list = r.json()['result']
+            spotify_results = None
+            for result in results_list:
+                if result['uri'].startswith('spotify') and 'artists' in result:
+                    spotify_results = result['artists']
+            if spotify_results is None:
+                return None
+            else:
+                formatted_results = {}
+                for artist_result in spotify_results:
+                    formatted_results[artist_result['name']] = {
+                        "__model__": "Ref", 
+                        "uri": artist_result['uri'], 
+                        "name": artist_result['name'], 
+                        "type": "album"
+                    }
+                return formatted_results
+        else:
+            return None
+
     def clear_list(self, force=False):
         if self.is_playing or force:
             d = copy(_base_dict)
